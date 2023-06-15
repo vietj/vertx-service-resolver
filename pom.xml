@@ -62,5 +62,34 @@
       <artifactId>vertx-codegen</artifactId>
       <scope>provided</scope>
     </dependency>
+
+
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-unit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.fabric8</groupId>
+      <artifactId>kubernetes-server-mock</artifactId>
+      <version>6.7.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.fabric8</groupId>
+      <artifactId>openshift-server-mock</artifactId>
+      <version>6.7.1</version>
+      <scope>test</scope>
+    </dependency>
+
+
   </dependencies>
 </project>
