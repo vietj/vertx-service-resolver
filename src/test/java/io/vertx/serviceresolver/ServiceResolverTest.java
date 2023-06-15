@@ -20,7 +20,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -38,9 +37,10 @@ public class ServiceResolverTest {
   private List<HttpServer> pods;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     vertx = Vertx.vertx();
     kubernetesMocking = new KubernetesMocking(server);
+    pods = new ArrayList<>();
 
     ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", kubernetesMocking.port());
     client = (HttpClientInternal) vertx.createHttpClient();
@@ -55,42 +55,68 @@ public class ServiceResolverTest {
       .get(20, TimeUnit.SECONDS);
   }
 
-  private SocketAddress[] startPods(int numPods, Handler<HttpServerRequest> service) throws Exception {
-    if (pods == null) {
-      pods = new ArrayList<>();
-      for (int i = 0;i < numPods;i++) {
-        HttpServer pod = vertx
-          .createHttpServer()
-          .requestHandler(service);
-        pods.add(pod);
-        pod.listen(8080 + i, "0.0.0.0")
-          .toCompletionStage()
-          .toCompletableFuture()
-          .get(20, TimeUnit.SECONDS);
-      }
+  private List<SocketAddress> startPods(int numPods, Handler<HttpServerRequest> service) throws Exception {
+    int basePort = pods.isEmpty() ? 8080 : pods.get(pods.size() - 1).actualPort() + 1;
+    List<HttpServer> started = new ArrayList<>();
+    for (int i = 0;i < numPods;i++) {
+      HttpServer pod = vertx
+        .createHttpServer()
+        .requestHandler(service);
+      started.add(pod);
+      pod.listen(basePort + i, "0.0.0.0")
+        .toCompletionStage()
+        .toCompletableFuture()
+        .get(20, TimeUnit.SECONDS);
     }
-    return pods
+    pods.addAll(started);
+    return started
       .stream()
       .map(s -> SocketAddress.inetSocketAddress(s.actualPort(), "127.0.0.1"))
-      .toArray(SocketAddress[]::new);
+      .collect(Collectors.toList());
   }
 
   @Test
   public void testSimple(TestContext should) throws Exception {
-    SocketAddress[] pods = startPods(3, req -> {
+    List<SocketAddress> pods = startPods(3, req -> {
       req.response().end("" + req.localAddress().port());
     });
     String serviceName = "svc";
-    kubernetesMocking.registerKubernetesResources(serviceName, kubernetesMocking.defaultNamespace(), pods);
-    Async async = should.async();
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), false, pods.get(0));
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), false, pods.get(1));
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), false, pods.get(2));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), false, pods);
     Future<Buffer> fut = client
       .request(ServiceAddress.create("svc"), HttpMethod.GET, 80, "localhost", "/")
       .compose(req -> req.send()
-        .compose(resp -> resp.body()));
-    fut.onComplete(should.asyncAssertSuccess(res -> {
-      should.assertEquals("8080", res.toString());
-      async.complete();
-    }));
+        .compose(HttpClientResponse::body));
+    Buffer body = fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    should.assertEquals("8080", body.toString());
   }
 
+  @Test
+  public void testUpdate(TestContext should) throws Exception {
+    Handler<HttpServerRequest> server = req -> {
+      req.response().end("" + req.localAddress().port());
+    };
+    List<SocketAddress> pods = startPods(1, server);
+    String serviceName = "svc";
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), false, pods.get(0));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), false, pods);
+    Future<Buffer> fut = client
+      .request(ServiceAddress.create("svc"), HttpMethod.GET, 80, "localhost", "/")
+      .compose(req -> req.send()
+        .compose(HttpClientResponse::body));
+    fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    Buffer body = fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    should.assertEquals("8080", body.toString());
+    pods.addAll(startPods(1, server));
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), false, pods.get(1));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), true, pods);
+    fut = client
+      .request(ServiceAddress.create("svc"), HttpMethod.GET, 80, "localhost", "/")
+      .compose(req -> req.send()
+        .compose(HttpClientResponse::body));
+    body = fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    should.assertEquals("8081", body.toString());
+  }
 }

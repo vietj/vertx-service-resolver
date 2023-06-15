@@ -3,6 +3,10 @@ package io.vertx.serviceresolver;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
+import io.fabric8.kubernetes.client.dsl.PodResource;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.vertx.core.net.SocketAddress;
 import junit.framework.AssertionFailedError;
@@ -44,13 +48,12 @@ public class KubernetesMocking {
     return client.getNamespace();
   }
 
-  void registerKubernetesResources(String serviceName, String namespace, SocketAddress... ips) {
-    buildAndRegisterKubernetesService(serviceName, namespace, true, ips);
-    Arrays.stream(ips).forEach(ip -> buildAndRegisterBackendPod(serviceName, namespace, true, ip));
-  }
+//  void registerKubernetesResources(String serviceName, String namespace, List<SocketAddress> ips) {
+//    buildAndRegisterKubernetesService(serviceName, namespace, true, ips);
+//    ips.forEach(ip -> buildAndRegisterBackendPod(serviceName, namespace, true, ip));
+//  }
 
-  Endpoints buildAndRegisterKubernetesService(String applicationName, String namespace, boolean register,
-                                                      SocketAddress... ipAdresses) {
+  Endpoints buildAndRegisterKubernetesService(String applicationName, String namespace, boolean update, List<SocketAddress> ipAdresses) {
 
     Map<String, String> serviceLabels = new HashMap<>();
     serviceLabels.put("app.kubernetes.io/name", applicationName);
@@ -76,21 +79,26 @@ public class KubernetesMocking {
 
     endpointAddressesMap.forEach((port, addresses) -> {
       endpointsBuilder.addToSubsets(new EndpointSubsetBuilder().withAddresses(addresses)
-        .addToPorts(new EndpointPort[] { new EndpointPortBuilder().withPort(8080).withProtocol("TCP").build() })
+        .addToPorts(new EndpointPort[] { new EndpointPortBuilder().withPort(port).withProtocol("TCP").build() })
         .build());
     });
 
-    if (register) {
-      if (namespace != null) {
-        client.endpoints().inNamespace(namespace).resource(endpointsBuilder.build()).create();
-      } else {
-        client.endpoints().resource(endpointsBuilder.build()).create();
-      }
+    NonNamespaceOperation<Endpoints, EndpointsList, Resource<Endpoints>> endpoints;
+    if (namespace != null) {
+      endpoints = client.endpoints().inNamespace(namespace);
+    } else {
+      endpoints = client.endpoints();
+    }
+    Resource<Endpoints> resource = endpoints.resource(endpointsBuilder.build());
+    if (update) {
+      resource.update();
+    } else {
+      resource.create();
     }
     return endpointsBuilder.build();
   }
 
-  Pod buildAndRegisterBackendPod(String name, String namespace, boolean register, SocketAddress ip) {
+  Pod buildAndRegisterBackendPod(String name, String namespace, boolean update, SocketAddress ip) {
 
     Map<String, String> serviceLabels = new HashMap<>();
     serviceLabels.put("app.kubernetes.io/name", name);
@@ -103,12 +111,17 @@ public class KubernetesMocking {
       .withNamespace(namespace)
       .endMetadata()
       .build();
-    if (register) {
-      if (namespace != null) {
-        client.pods().inNamespace(namespace).resource(backendPod).create();
-      } else {
-        client.pods().resource(backendPod).create();
-      }
+    NonNamespaceOperation<Pod, PodList, PodResource> pods;
+    if (namespace != null) {
+      pods = client.pods().inNamespace(namespace);
+    } else {
+      pods = client.pods();
+    }
+    PodResource resource = pods.resource(backendPod);
+    if (update) {
+      resource.update();
+    } else {
+      resource.create();
     }
     return backendPod;
   }
