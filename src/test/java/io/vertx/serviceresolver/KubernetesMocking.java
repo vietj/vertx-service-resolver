@@ -53,7 +53,7 @@ public class KubernetesMocking {
 //    ips.forEach(ip -> buildAndRegisterBackendPod(serviceName, namespace, true, ip));
 //  }
 
-  Endpoints buildAndRegisterKubernetesService(String applicationName, String namespace, boolean update, List<SocketAddress> ipAdresses) {
+  Endpoints buildAndRegisterKubernetesService(String applicationName, String namespace, KubeOp op, List<SocketAddress> ipAdresses) {
 
     Map<String, String> serviceLabels = new HashMap<>();
     serviceLabels.put("app.kubernetes.io/name", applicationName);
@@ -90,15 +90,21 @@ public class KubernetesMocking {
       endpoints = client.endpoints();
     }
     Resource<Endpoints> resource = endpoints.resource(endpointsBuilder.build());
-    if (update) {
-      resource.update();
-    } else {
-      resource.create();
+    switch (op) {
+      case CREATE:
+        resource.create();
+        break;
+      case UPDATE:
+        resource.update();
+        break;
+      case DELETE:
+        resource.delete();
+        break;
     }
     return endpointsBuilder.build();
   }
 
-  Pod buildAndRegisterBackendPod(String name, String namespace, boolean update, SocketAddress ip) {
+  Pod buildAndRegisterBackendPod(String name, String namespace, KubeOp op, SocketAddress ip) {
 
     Map<String, String> serviceLabels = new HashMap<>();
     serviceLabels.put("app.kubernetes.io/name", name);
@@ -118,10 +124,16 @@ public class KubernetesMocking {
       pods = client.pods();
     }
     PodResource resource = pods.resource(backendPod);
-    if (update) {
-      resource.update();
-    } else {
-      resource.create();
+    switch (op) {
+      case CREATE:
+        resource.create();
+        break;
+      case UPDATE:
+        resource.update();
+        break;
+      case DELETE:
+        resource.delete();
+        break;
     }
     return backendPod;
   }
