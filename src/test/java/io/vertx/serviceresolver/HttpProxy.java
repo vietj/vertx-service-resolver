@@ -2,11 +2,12 @@ package io.vertx.serviceresolver;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
+import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.core.net.SocketAddress;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class HttpProxy {
 
@@ -15,7 +16,7 @@ public class HttpProxy {
   private HttpClient client;
   private SocketAddress origin;
   private int port;
-  private AtomicInteger pendingWebSockets = new AtomicInteger();
+  private final ConcurrentHashSet<WebSocketBase> webSockets = new ConcurrentHashSet<>();
 
   public HttpProxy(Vertx vertx) {
     this.vertx = vertx;
@@ -58,7 +59,6 @@ public class HttpProxy {
           serverRequest.toWebSocket().onComplete(ar2 -> {
             if (!closed.get()) {
               if (ar2.succeeded()) {
-                pendingWebSockets.incrementAndGet();
                 ServerWebSocket wss = ar2.result();
                 wsc.handler(wss::write);
                 wss.endHandler(v -> {
@@ -71,9 +71,10 @@ public class HttpProxy {
                   wsc.close();
                 });
                 wsc.closeHandler(v -> {
-                  pendingWebSockets.decrementAndGet();
+                  webSockets.remove(wss);
                   wss.close();
                 });
+                webSockets.add(wss);
               } else {
                 wsc.close();
               }
@@ -87,8 +88,6 @@ public class HttpProxy {
           serverRequest.response().setStatusCode(500).end();
         }
       });
-
-      System.out.println("handle upgrade");
     } else {
       RequestOptions options = new RequestOptions()
         .setServer(origin)
@@ -121,7 +120,7 @@ public class HttpProxy {
     }
   }
 
-  public int pendingWebSockets() {
-    return pendingWebSockets.get();
+  public Set<WebSocketBase> webSockets() {
+    return webSockets;
   }
 }

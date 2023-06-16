@@ -15,11 +15,11 @@ import static io.vertx.core.http.HttpMethod.GET;
 
 public class ServiceResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
 
-  private Vertx vertx;
-  private String host;
-  private int port;
-  private HttpClient client;
-  private String namespace;
+  final Vertx vertx;
+  final String host;
+  final int port;
+  final HttpClient client;
+  final String namespace;
 
   public ServiceResolver(Vertx vertx, String namespace, String host, int port) {
     this.vertx = vertx;
@@ -48,7 +48,7 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
         }
       })).map(response -> {
         String resourceVersion = response.getJsonObject("metadata").getString("resourceVersion");
-        ServiceState state = new ServiceState(resourceVersion, serviceName.name());
+        ServiceState state = new ServiceState(this, resourceVersion, serviceName.name());
         JsonArray items = response.getJsonArray("items");
         for (int i = 0;i < items.size();i++) {
           JsonObject item = items.getJsonObject(i);
@@ -60,33 +60,7 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
       }).andThen(ar -> {
         if (ar.succeeded()) {
           ServiceState res = ar.result();
-          String path = "/api/v1/namespaces/" + namespace + "/endpoints?"
-            + "watch=true"
-            + "&"
-            + "allowWatchBookmarks=true"
-            + "&"
-            + "resourceVersion=" + res.lastResourceVersion;
-          client.webSocket(port, host, path).onComplete(ar2 -> {
-            if (ar2.succeeded()) {
-              WebSocket ws = ar2.result();
-              if (res.disposed) {
-                ws.close();
-              } else {
-                res.ws = ws;
-                ws.handler(buff -> {
-                  JsonObject update  = buff.toJsonObject();
-                  res.handleUpdate(update);
-                });
-                ws.closeHandler(v -> {
-                  if (!res.disposed) {
-                    System.out.println("WEBSOCKET CLOSED HANDLE ME RECONNECT");
-                  }
-                });
-              }
-            } else {
-              System.out.println("WS upgrade failed");
-            }
-          });
+          res.connectWebSocket();
         }
       });
   }

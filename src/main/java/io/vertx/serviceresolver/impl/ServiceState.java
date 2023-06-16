@@ -1,5 +1,6 @@
 package io.vertx.serviceresolver.impl;
 
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -12,16 +13,49 @@ import java.util.concurrent.atomic.AtomicInteger;
 class ServiceState {
 
   String lastResourceVersion;
+  final ServiceResolver resolver;
   final String name;
   final List<SocketAddress> podAddresses;
   final AtomicInteger idx = new AtomicInteger();
   boolean disposed;
   WebSocket ws;
 
-  ServiceState(String lastResourceVersion, String name) {
+  ServiceState(ServiceResolver resolver, String lastResourceVersion, String name) {
+    this.resolver = resolver;
     this.lastResourceVersion = lastResourceVersion;
     this.name = name;
     this.podAddresses = new ArrayList<>();
+  }
+
+  void connectWebSocket() {
+    String path = "/api/v1/namespaces/" + resolver.namespace + "/endpoints?"
+      + "watch=true"
+      + "&"
+      + "allowWatchBookmarks=true"
+      + "&"
+      + "resourceVersion=" + lastResourceVersion;
+    resolver.client.webSocket(resolver.port, resolver.host, path).onComplete(ar2 -> {
+      if (ar2.succeeded()) {
+        WebSocket ws = ar2.result();
+        if (disposed) {
+          ws.close();
+        } else {
+          this.ws = ws;
+          ws.handler(buff -> {
+            JsonObject update  = buff.toJsonObject();
+            handleUpdate(update);
+          });
+          ws.closeHandler(v -> {
+            if (!disposed) {
+              System.out.println("RECONNECTING");
+              connectWebSocket();
+            }
+          });
+        }
+      } else {
+        System.out.println("WS upgrade failed");
+      }
+    });
   }
 
   void handleUpdate(JsonObject update) {
