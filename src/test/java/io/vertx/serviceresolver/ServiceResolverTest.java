@@ -19,7 +19,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -52,6 +54,18 @@ public class ServiceResolverTest {
       .toCompletionStage()
       .toCompletableFuture()
       .get(20, TimeUnit.SECONDS);
+  }
+
+  private void stopPods(Predicate<HttpServer> pred) throws Exception {
+    Set<HttpServer> stopped = new HashSet<>();
+    for (int i = 0;i < pods.size();i++) {
+      HttpServer pod = pods.get(i);
+      if (pred.test(pod)) {
+        stopped.add(pod);
+        pod.close().toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+      }
+    }
+    pods.removeAll(stopped);
   }
 
   private List<SocketAddress> startPods(int numPods, Handler<HttpServerRequest> service) throws Exception {
@@ -118,6 +132,20 @@ public class ServiceResolverTest {
     kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.UPDATE, pods.subList(0, 1));
     should.assertEquals("8080", get().toString());
     should.assertEquals("8080", get().toString());
+  }
+
+  @Test
+  public void testDispose(TestContext should) throws Exception {
+    Handler<HttpServerRequest> server = req -> {
+      req.response().end("" + req.localAddress().port());
+    };
+    List<SocketAddress> pods = startPods(1, server);
+    String serviceName = "svc";
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(0));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods);
+    should.assertEquals("8080", get().toString());
+    stopPods(pod -> true);
+    should.async();
   }
 
   private Buffer get() throws Exception {

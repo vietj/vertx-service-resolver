@@ -1,5 +1,6 @@
 package io.vertx.serviceresolver.impl;
 
+import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
@@ -14,6 +15,8 @@ class ServiceState {
   final String name;
   final List<SocketAddress> podAddresses;
   final AtomicInteger idx = new AtomicInteger();
+  boolean disposed;
+  WebSocket ws;
 
   ServiceState(String lastResourceVersion, String name) {
     this.lastResourceVersion = lastResourceVersion;

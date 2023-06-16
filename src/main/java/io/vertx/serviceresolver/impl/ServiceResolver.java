@@ -69,13 +69,20 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
           client.webSocket(port, host, path).onComplete(ar2 -> {
             if (ar2.succeeded()) {
               WebSocket ws = ar2.result();
-              ws.handler(buff -> {
-                JsonObject update  = buff.toJsonObject();
-                res.handleUpdate(update);
-              });
-              ws.closeHandler(v -> {
-                System.out.println("WEBSOCKET CLOSED HANDLE ME");
-              });
+              if (res.disposed) {
+                ws.close();
+              } else {
+                res.ws = ws;
+                ws.handler(buff -> {
+                  JsonObject update  = buff.toJsonObject();
+                  res.handleUpdate(update);
+                });
+                ws.closeHandler(v -> {
+                  if (!res.disposed) {
+                    System.out.println("WEBSOCKET CLOSED HANDLE ME RECONNECT");
+                  }
+                });
+              }
             } else {
               System.out.println("WS upgrade failed");
             }
@@ -102,6 +109,10 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
 
   @Override
   public void dispose(ServiceState unused) {
-    System.out.println("TODO DISPOSE");
+    unused.disposed = true;
+    if (unused.ws != null) {
+      System.out.println("CLOSING WS");
+      unused.ws.close();
+    }
   }
 }
