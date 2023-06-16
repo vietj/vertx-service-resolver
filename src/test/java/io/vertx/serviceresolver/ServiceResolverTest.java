@@ -18,11 +18,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -109,6 +112,15 @@ public class ServiceResolverTest {
   }
 
   @Test
+  public void testNoPods(TestContext should) throws Exception {
+    try {
+      get();
+    } catch (Exception e) {
+      should.assertEquals("No addresses", e.getMessage());
+    }
+  }
+
+  @Test
   public void testUpdate(TestContext should) throws Exception {
     Handler<HttpServerRequest> server = req -> {
       req.response().end("" + req.localAddress().port());
@@ -189,7 +201,18 @@ public class ServiceResolverTest {
       .request(ServiceAddress.create("svc"), HttpMethod.GET, 80, "localhost", "/")
       .compose(req -> req.send()
         .compose(HttpClientResponse::body));
-    return fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    try {
+      return fut.toCompletionStage().toCompletableFuture().get(20, TimeUnit.SECONDS);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException) {
+        throw ((RuntimeException) cause);
+      } else {
+        throw new UndeclaredThrowableException(cause, cause.getMessage());
+      }
+    } catch (TimeoutException | InterruptedException e) {
+      throw e;
+    }
   }
 
   private void getUntil(Predicate<Buffer> test) throws Exception {
