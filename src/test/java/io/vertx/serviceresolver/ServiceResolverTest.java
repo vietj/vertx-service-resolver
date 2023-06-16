@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @RunWith(VertxUnitRunner.class)
@@ -36,14 +37,20 @@ public class ServiceResolverTest {
   private HttpClientInternal client;
   private KubernetesMocking kubernetesMocking;
   private List<HttpServer> pods;
+  private HttpProxy proxy;
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
     vertx = Vertx.vertx();
     kubernetesMocking = new KubernetesMocking(server);
     pods = new ArrayList<>();
 
-    ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", kubernetesMocking.port());
+    proxy = new HttpProxy(vertx);
+    proxy.origin(SocketAddress.inetSocketAddress(kubernetesMocking.port(), "localhost"));
+    proxy.port(1234);
+    proxy.start();
+
+    ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234);
     client = (HttpClientInternal) vertx.createHttpClient();
     client.addressResolver(resolver);
   }
@@ -144,8 +151,18 @@ public class ServiceResolverTest {
     kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(0));
     kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods);
     should.assertEquals("8080", get().toString());
+    assertWaitUntil(() -> proxy.pendingWebSockets() == 1);
     stopPods(pod -> true);
-    should.async();
+    assertWaitUntil(() -> proxy.pendingWebSockets() == 0);
+  }
+
+  private void assertWaitUntil(Supplier<Boolean> cond) {
+    long now = System.currentTimeMillis();
+    while (!cond.get()) {
+      if (System.currentTimeMillis() - now > 20_000) {
+        throw new AssertionFailedError();
+      }
+    }
   }
 
   private Buffer get() throws Exception {
