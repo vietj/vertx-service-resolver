@@ -85,7 +85,6 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
   public void dispose(ServiceState unused) {
     unused.disposed = true;
     if (unused.ws != null) {
-      System.out.println("CLOSING WS");
       unused.ws.close();
     }
   }

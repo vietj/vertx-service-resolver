@@ -47,13 +47,14 @@ class ServiceState {
           });
           ws.closeHandler(v -> {
             if (!disposed) {
-              System.out.println("RECONNECTING");
               connectWebSocket();
             }
           });
         }
       } else {
-        System.out.println("WS upgrade failed");
+        if (!disposed) {
+          connectWebSocket();
+        }
       }
     });
   }

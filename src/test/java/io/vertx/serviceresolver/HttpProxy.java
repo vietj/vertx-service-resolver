@@ -116,7 +116,6 @@ public class HttpProxy {
           // Nothing to do ? (compose?)
         }
       });
-      System.out.println("handle request " + serverRequest.headers());
     }
   }
 
