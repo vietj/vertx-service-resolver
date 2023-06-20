@@ -154,7 +154,7 @@ public class ServiceResolverTest {
     should.assertEquals("8080", get().toString());
     kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(1));
     kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.UPDATE, pods);
-    getUntil(body -> body.toString().equals("8081"));
+    assertWaitUntil(() -> get().toString().equals("8081"));
   }
 
   @Test
@@ -235,16 +235,5 @@ public class ServiceResolverTest {
     } catch (TimeoutException | InterruptedException e) {
       throw e;
     }
-  }
-
-  private void getUntil(Predicate<Buffer> test) throws Exception {
-    int count = 10;
-    for (int i = 0;i < count;i++) {
-      Buffer body = get();
-      if (test.test(body)) {
-        return;
-      }
-    }
-    throw new AssertionFailedError();
   }
 }
