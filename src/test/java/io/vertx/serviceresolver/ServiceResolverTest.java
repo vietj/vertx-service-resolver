@@ -21,6 +21,7 @@ import org.junit.runner.RunWith;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -205,12 +206,12 @@ public class ServiceResolverTest {
     assertWaitUntil(() -> proxy.webSockets().size() == 1 && !proxy.webSockets().contains(ws));
     kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(1));
     kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.UPDATE, pods);
-    should.assertEquals("8081", get().toString());
+    assertWaitUntil(() -> get().toString().equals("8081"));
   }
 
-  private void assertWaitUntil(Supplier<Boolean> cond) {
+  private void assertWaitUntil(Callable<Boolean> cond) throws Exception {
     long now = System.currentTimeMillis();
-    while (!cond.get()) {
+    while (!cond.call()) {
       if (System.currentTimeMillis() - now > 20_000) {
         throw new AssertionFailedError();
       }
