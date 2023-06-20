@@ -3,6 +3,7 @@ package io.vertx.serviceresolver;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
 import io.vertx.core.impl.ConcurrentHashSet;
+import io.vertx.core.net.JksOptions;
 import io.vertx.core.net.SocketAddress;
 
 import java.util.Set;
@@ -34,7 +35,12 @@ public class HttpProxy {
   }
 
   public void start() throws Exception {
-    HttpServer server = vertx.createHttpServer();
+    HttpServer server = vertx.createHttpServer(new HttpServerOptions()
+      .setSsl(true)
+      .setKeyCertOptions(new JksOptions()
+        .setPath("server-keystore.jks")
+        .setPassword("wibble"))
+    );
     server.requestHandler(this::handleRequest);
     server
       .listen(port)
@@ -109,6 +115,7 @@ public class HttpProxy {
                 }
               });
             } else {
+              ar.cause().printStackTrace();
               serverRequest.response().reset();
             }
           });

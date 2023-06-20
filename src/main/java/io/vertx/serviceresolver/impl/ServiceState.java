@@ -1,7 +1,8 @@
 package io.vertx.serviceresolver.impl;
 
-import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.WebSocket;
+import io.vertx.core.http.WebSocketConnectOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
@@ -28,13 +29,20 @@ class ServiceState {
   }
 
   void connectWebSocket() {
-    String path = "/api/v1/namespaces/" + resolver.namespace + "/endpoints?"
+    String requestURI = "/api/v1/namespaces/" + resolver.namespace + "/endpoints?"
       + "watch=true"
       + "&"
       + "allowWatchBookmarks=true"
       + "&"
       + "resourceVersion=" + lastResourceVersion;
-    resolver.client.webSocket(resolver.port, resolver.host, path).onComplete(ar2 -> {
+    WebSocketConnectOptions connectOptions = new WebSocketConnectOptions();
+    connectOptions.setHost(resolver.host);
+    connectOptions.setPort(resolver.port);
+    connectOptions.setURI(requestURI);
+    if (resolver.bearerToken != null) {
+      connectOptions.putHeader(HttpHeaders.AUTHORIZATION, "Bearer " + resolver.bearerToken);
+    }
+    resolver.client.webSocket(connectOptions).onComplete(ar2 -> {
       if (ar2.succeeded()) {
         WebSocket ws = ar2.result();
         if (disposed) {
@@ -53,7 +61,10 @@ class ServiceState {
         }
       } else {
         if (!disposed) {
-          connectWebSocket();
+          // Retry WebSocket connect
+          resolver.vertx.setTimer(500, id -> {
+            connectWebSocket();
+          });
         }
       }
     });
@@ -62,12 +73,10 @@ class ServiceState {
   void handleUpdate(JsonObject update) {
     String type = update.getString("type");
     JsonObject object = update.getJsonObject("object");
-    if ("Endpoints".equals(object.getString("kind"))) {
-      JsonObject metadata = object.getJsonObject("metadata");
-      String resourceVersion = metadata.getString("resourceVersion");
-      if (!lastResourceVersion.equals(resourceVersion)) {
-        handleEndpoints(object);
-      }
+    JsonObject metadata = object.getJsonObject("metadata");
+    String resourceVersion = metadata.getString("resourceVersion");
+    if (!lastResourceVersion.equals(resourceVersion)) {
+      handleEndpoints(object);
     }
   }
 
@@ -77,22 +86,24 @@ class ServiceState {
     if (this.name.equals(name)) {
       podAddresses.clear();
       JsonArray subsets = item.getJsonArray("subsets");
-      for (int j = 0;j < subsets.size();j++) {
-        List<String> podIps = new ArrayList<>();
-        JsonObject subset = subsets.getJsonObject(j);
-        JsonArray addresses = subset.getJsonArray("addresses");
-        JsonArray ports = subset.getJsonArray("ports");
-        for (int k = 0;k < addresses.size();k++) {
-          JsonObject address = addresses.getJsonObject(k);
-          String ip = address.getString("ip");
-          podIps.add(ip);
-        }
-        for (int k = 0;k < ports.size();k++) {
-          JsonObject port = ports.getJsonObject(k);
-          int podPort = port.getInteger("port");
-          for (String podIp : podIps) {
-            SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
-            podAddresses.add(podAddress);
+      if (subsets != null) {
+        for (int j = 0;j < subsets.size();j++) {
+          List<String> podIps = new ArrayList<>();
+          JsonObject subset = subsets.getJsonObject(j);
+          JsonArray addresses = subset.getJsonArray("addresses");
+          JsonArray ports = subset.getJsonArray("ports");
+          for (int k = 0;k < addresses.size();k++) {
+            JsonObject address = addresses.getJsonObject(k);
+            String ip = address.getString("ip");
+            podIps.add(ip);
+          }
+          for (int k = 0;k < ports.size();k++) {
+            JsonObject port = ports.getJsonObject(k);
+            int podPort = port.getInteger("port");
+            for (String podIp : podIps) {
+              SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
+              podAddresses.add(podAddress);
+            }
           }
         }
       }

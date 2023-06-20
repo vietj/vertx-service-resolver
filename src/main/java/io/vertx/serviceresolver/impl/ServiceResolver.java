@@ -20,13 +20,17 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
   final int port;
   final HttpClient client;
   final String namespace;
+  final String bearerToken;
 
-  public ServiceResolver(Vertx vertx, String namespace, String host, int port) {
+  public ServiceResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
     this.vertx = vertx;
     this.namespace = namespace;
     this.host = host;
     this.port = port;
-    this.client = vertx.createHttpClient();
+    this.bearerToken = bearerToken;
+    this.client = vertx.createHttpClient(new HttpClientOptions()
+      .setSsl(true)
+      .setTrustAll(true));
   }
 
   @Override
@@ -38,23 +42,26 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
   public Future<ServiceState> resolve(ServiceAddress serviceName) {
     return client
       .request(GET, port, host, "/api/v1/namespaces/" + namespace + "/endpoints")
-      .compose(req -> req.send().compose(resp -> {
-        if (resp.statusCode() == 200) {
-          return resp
-            .body()
-            .map(Buffer::toJsonObject);
-        } else {
-          return Future.failedFuture("Invalid status code " + resp.statusCode());
+      .compose(req -> {
+        if (bearerToken != null) {
+          req.putHeader(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken); // Todo concat that ?
         }
-      })).map(response -> {
+        return req.send().compose(resp -> {
+          if (resp.statusCode() == 200) {
+            return resp
+              .body()
+              .map(Buffer::toJsonObject);
+          } else {
+            return Future.failedFuture("Invalid status code " + resp.statusCode());
+          }
+        });
+      }).map(response -> {
         String resourceVersion = response.getJsonObject("metadata").getString("resourceVersion");
         ServiceState state = new ServiceState(this, resourceVersion, serviceName.name());
         JsonArray items = response.getJsonArray("items");
         for (int i = 0;i < items.size();i++) {
           JsonObject item = items.getJsonObject(i);
-          if ("Endpoints".equals(item.getString("kind"))) {
-            state.handleEndpoints(item);
-          }
+          state.handleEndpoints(item);
         }
         return state;
       }).andThen(ar -> {
@@ -72,6 +79,7 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
     } else {
       int idx = unused.idx.getAndIncrement();
       SocketAddress address = unused.podAddresses.get(idx % unused.podAddresses.size());
+      System.out.println("Picked addresse " + address);
       return Future.succeededFuture(address);
     }
   }

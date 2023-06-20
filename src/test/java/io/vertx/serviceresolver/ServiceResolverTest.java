@@ -8,7 +8,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.serviceresolver.impl.ServiceResolver;
@@ -20,10 +19,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.net.InetAddress;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -35,7 +32,7 @@ import java.util.stream.Collectors;
 public class ServiceResolverTest {
 
   @Rule
-  public KubernetesServer server = new KubernetesServer(false, true);
+  public KubernetesServer server = new KubernetesServer(false, true, InetAddress.getLoopbackAddress(), 8443, Collections.emptyList());
 
   private Vertx vertx;
   private HttpClientInternal client;
@@ -54,7 +51,7 @@ public class ServiceResolverTest {
     proxy.port(1234);
     proxy.start();
 
-    ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234);
+    ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234, null);
     client = (HttpClientInternal) vertx.createHttpClient();
     client.addressResolver(resolver);
   }
