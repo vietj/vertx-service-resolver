@@ -63,7 +63,8 @@ class ServiceState {
     String type = update.getString("type");
     JsonObject object = update.getJsonObject("object");
     if ("Endpoints".equals(object.getString("kind"))) {
-      String resourceVersion = object.getJsonObject("metadata").getString("resourceVersion");
+      JsonObject metadata = object.getJsonObject("metadata");
+      String resourceVersion = metadata.getString("resourceVersion");
       if (!lastResourceVersion.equals(resourceVersion)) {
         handleEndpoints(object);
       }
@@ -71,26 +72,28 @@ class ServiceState {
   }
 
   void handleEndpoints(JsonObject item) {
-    podAddresses.clear();
     JsonObject metadata = item.getJsonObject("metadata");
     String name = metadata.getString("name");
-    JsonArray subsets = item.getJsonArray("subsets");
-    for (int j = 0;j < subsets.size();j++) {
-      List<String> podIps = new ArrayList<>();
-      JsonObject subset = subsets.getJsonObject(j);
-      JsonArray addresses = subset.getJsonArray("addresses");
-      JsonArray ports = subset.getJsonArray("ports");
-      for (int k = 0;k < addresses.size();k++) {
-        JsonObject address = addresses.getJsonObject(k);
-        String ip = address.getString("ip");
-        podIps.add(ip);
-      }
-      for (int k = 0;k < ports.size();k++) {
-        JsonObject port = ports.getJsonObject(k);
-        int podPort = port.getInteger("port");
-        for (String podIp : podIps) {
-          SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
-          podAddresses.add(podAddress);
+    if (this.name.equals(name)) {
+      podAddresses.clear();
+      JsonArray subsets = item.getJsonArray("subsets");
+      for (int j = 0;j < subsets.size();j++) {
+        List<String> podIps = new ArrayList<>();
+        JsonObject subset = subsets.getJsonObject(j);
+        JsonArray addresses = subset.getJsonArray("addresses");
+        JsonArray ports = subset.getJsonArray("ports");
+        for (int k = 0;k < addresses.size();k++) {
+          JsonObject address = addresses.getJsonObject(k);
+          String ip = address.getString("ip");
+          podIps.add(ip);
+        }
+        for (int k = 0;k < ports.size();k++) {
+          JsonObject port = ports.getJsonObject(k);
+          int podPort = port.getInteger("port");
+          for (String podIp : podIps) {
+            SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
+            podAddresses.add(podAddress);
+          }
         }
       }
     }

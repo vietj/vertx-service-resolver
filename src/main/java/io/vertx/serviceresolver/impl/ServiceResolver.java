@@ -68,7 +68,7 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
   @Override
   public Future<SocketAddress> pickAddress(ServiceState unused) {
     if (unused.podAddresses.isEmpty()) {
-      return Future.failedFuture("No addresses");
+      return Future.failedFuture("No addresses for service " + unused.name);
     } else {
       int idx = unused.idx.getAndIncrement();
       SocketAddress address = unused.podAddresses.get(idx % unused.podAddresses.size());

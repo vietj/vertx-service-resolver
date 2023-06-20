@@ -8,6 +8,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.serviceresolver.impl.ServiceResolver;
@@ -116,8 +117,31 @@ public class ServiceResolverTest {
     try {
       get();
     } catch (Exception e) {
-      should.assertEquals("No addresses", e.getMessage());
+      should.assertEquals("No addresses for service svc", e.getMessage());
     }
+  }
+
+  @Test
+  public void testSelect(TestContext should) throws Exception {
+    List<SocketAddress> pods = startPods(3, req -> {
+      req.response().end("" + req.localAddress().port());
+    });
+    String serviceName1 = "svc";
+    String serviceName2 = "svc2";
+    String serviceName3 = "svc3";
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName1, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(0));
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName2, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(1));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName1, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.subList(0, 1));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName2, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.subList(1, 2));
+    should.assertEquals("8080", get().toString());
+    should.assertEquals("8080", get().toString());
+    Thread.sleep(500); // Pause for some time to allow WebSocket to not concurrently run with updates
+    kubernetesMocking.buildAndRegisterBackendPod(serviceName3, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.get(2));
+    kubernetesMocking.buildAndRegisterKubernetesService(serviceName3, kubernetesMocking.defaultNamespace(), KubeOp.CREATE, pods.subList(2, 3));
+    Thread.sleep(500); // Pause for some time to allow WebSocket to get changes
+    should.assertEquals("8080", get().toString());
+    should.assertEquals("8080", get().toString());
+    should.assertEquals("8080", get().toString());
   }
 
   @Test
