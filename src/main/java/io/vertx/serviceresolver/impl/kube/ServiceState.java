@@ -1,4 +1,4 @@
-package io.vertx.serviceresolver.impl;
+package io.vertx.serviceresolver.impl.kube;
 
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.WebSocket;
@@ -14,14 +14,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 class ServiceState {
 
   String lastResourceVersion;
-  final ServiceResolver resolver;
+  final KubeResolver resolver;
   final String name;
   final List<SocketAddress> podAddresses;
   final AtomicInteger idx = new AtomicInteger();
   boolean disposed;
   WebSocket ws;
 
-  ServiceState(ServiceResolver resolver, String lastResourceVersion, String name) {
+  ServiceState(KubeResolver resolver, String lastResourceVersion, String name) {
     this.resolver = resolver;
     this.lastResourceVersion = lastResourceVersion;
     this.name = name;

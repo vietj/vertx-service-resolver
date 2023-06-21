@@ -1,4 +1,4 @@
-package io.vertx.serviceresolver.impl;
+package io.vertx.serviceresolver.impl.kube;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -13,7 +13,7 @@ import io.vertx.serviceresolver.ServiceAddress;
 
 import static io.vertx.core.http.HttpMethod.GET;
 
-public class ServiceResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
+public class KubeResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
 
   final Vertx vertx;
   final String host;
@@ -22,7 +22,7 @@ public class ServiceResolver implements AddressResolver<ServiceState, ServiceAdd
   final String namespace;
   final String bearerToken;
 
-  public ServiceResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
+  public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
     this.vertx = vertx;
     this.namespace = namespace;
     this.host = host;

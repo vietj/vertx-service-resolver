@@ -1,4 +1,4 @@
-package io.vertx.serviceresolver;
+package io.vertx.serviceresolver.kube;
 
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.vertx.core.Future;
@@ -10,7 +10,9 @@ import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.serviceresolver.impl.ServiceResolver;
+import io.vertx.serviceresolver.HttpProxy;
+import io.vertx.serviceresolver.ServiceAddress;
+import io.vertx.serviceresolver.impl.kube.KubeResolver;
 import junit.framework.AssertionFailedError;
 import org.junit.After;
 import org.junit.Before;
@@ -26,11 +28,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @RunWith(VertxUnitRunner.class)
-public class ServiceResolverTest {
+public class KubeServiceResolverTest {
 
   @Rule
   public KubernetesServer server = new KubernetesServer(false, true, InetAddress.getLoopbackAddress(), 8443, Collections.emptyList());
@@ -52,7 +53,7 @@ public class ServiceResolverTest {
     proxy.port(1234);
     proxy.start();
 
-    ServiceResolver resolver = new ServiceResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234, null);
+    KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234, null);
     client = (HttpClientInternal) vertx.createHttpClient();
     client.addressResolver(resolver);
   }

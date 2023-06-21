@@ -1,9 +1,8 @@
-package io.vertx.serviceresolver;
+package io.vertx.serviceresolver.kube;
 
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -14,8 +13,6 @@ import junit.framework.AssertionFailedError;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 public class KubernetesMocking {
 
