@@ -1,6 +1,7 @@
-package io.vertx.serviceresolver.impl.svc;
+package io.vertx.serviceresolver.impl.srv;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.dns.DnsClient;
 import io.vertx.core.dns.SrvRecord;
 import io.vertx.core.impl.VertxInternal;
@@ -11,14 +12,14 @@ import io.vertx.serviceresolver.ServiceAddress;
 
 import java.util.List;
 
-public class SvcResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
+public class SrvResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
 
   private VertxInternal vertx;
   final String host;
   final int port;
   final DnsClient client;
 
-  public SvcResolver(VertxInternal vertx, String host, int port) {
+  public SrvResolver(VertxInternal vertx, String host, int port) {
     this.vertx = vertx;
     this.host = host;
     this.port = port;
@@ -32,32 +33,31 @@ public class SvcResolver implements AddressResolver<ServiceState, ServiceAddress
 
   @Override
   public Future<ServiceState> resolve(ServiceAddress address) {
-
     Future<List<SrvRecord>> fut = client.resolveSRV(address.name());
-    fut.map(records -> {
-
-      for (SrvRecord record : records) {
-        record.name();
-      }
-
-      return null;
+    return fut.map(records -> {
+      ServiceState state = new ServiceState(address.name());
+      state.podAddresses.addAll(records);
+      return state;
     });
-
-    return null;
   }
 
   @Override
   public Future<SocketAddress> pickAddress(ServiceState state) {
-    return null;
+    if (state.podAddresses.size() == 0) {
+      return Future.failedFuture("No addresses");
+    }
+    int idx = state.idx.getAndIncrement();
+    SrvRecord record = state.podAddresses.get(idx % state.podAddresses.size());
+    return Future.succeededFuture(SocketAddress.inetSocketAddress(record.port(), record.target()));
   }
 
   @Override
   public void removeAddress(ServiceState state, SocketAddress address) {
-
+    // TODO
   }
 
   @Override
   public void dispose(ServiceState state) {
-
+    // TODO
   }
 }

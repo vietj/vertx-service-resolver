@@ -86,9 +86,9 @@ public abstract class ServiceResolverTestBase {
     }
   }
 
-  protected Buffer get() throws Exception {
+  protected Buffer get(ServiceAddress addr) throws Exception {
     Future<Buffer> fut = client
-      .request(ServiceAddress.create("svc"), HttpMethod.GET, 80, "localhost", "/")
+      .request(addr, HttpMethod.GET, 80, "localhost", "/")
       .compose(req -> req.send()
         .compose(HttpClientResponse::body));
     try {
