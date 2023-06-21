@@ -32,6 +32,7 @@
     <stack.version>5.0.0-SNAPSHOT</stack.version>
     <termd.version>1.1.6</termd.version>
     <jar.manifest>${project.basedir}/src/main/resources/META-INF/MANIFEST.MF</jar.manifest>
+    <apacheds-protocol-dns.version>1.5.7</apacheds-protocol-dns.version>
   </properties>
 
   <dependencyManagement>
@@ -70,6 +71,20 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.13.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-core</artifactId>
+      <classifier>tests</classifier>
+      <version>5.0.0-SNAPSHOT</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.directory.server</groupId>
+      <artifactId>apacheds-protocol-dns</artifactId>
+      <version>${apacheds-protocol-dns.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
