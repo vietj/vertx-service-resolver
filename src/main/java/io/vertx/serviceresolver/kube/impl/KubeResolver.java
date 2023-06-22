@@ -1,4 +1,4 @@
-package io.vertx.serviceresolver.impl.kube;
+package io.vertx.serviceresolver.kube.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -6,16 +6,14 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.net.Address;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.core.spi.resolver.AddressResolver;
 import io.vertx.serviceresolver.ServiceAddress;
+import io.vertx.serviceresolver.impl.ResolverBase;
 
 import static io.vertx.core.http.HttpMethod.GET;
 
-public class KubeResolver implements AddressResolver<ServiceState, ServiceAddress, Void> {
+public class KubeResolver extends ResolverBase<KubeServiceState> {
 
-  final Vertx vertx;
   final String host;
   final int port;
   final HttpClient client;
@@ -23,7 +21,7 @@ public class KubeResolver implements AddressResolver<ServiceState, ServiceAddres
   final String bearerToken;
 
   public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
-    this.vertx = vertx;
+    super(vertx);
     this.namespace = namespace;
     this.host = host;
     this.port = port;
@@ -34,12 +32,7 @@ public class KubeResolver implements AddressResolver<ServiceState, ServiceAddres
   }
 
   @Override
-  public ServiceAddress tryCast(Address address) {
-    return address instanceof ServiceAddress ? (ServiceAddress) address : null;
-  }
-
-  @Override
-  public Future<ServiceState> resolve(ServiceAddress serviceName) {
+  public Future<KubeServiceState> resolve(ServiceAddress serviceName) {
     return client
       .request(GET, port, host, "/api/v1/namespaces/" + namespace + "/endpoints")
       .compose(req -> {
@@ -57,7 +50,7 @@ public class KubeResolver implements AddressResolver<ServiceState, ServiceAddres
         });
       }).map(response -> {
         String resourceVersion = response.getJsonObject("metadata").getString("resourceVersion");
-        ServiceState state = new ServiceState(this, resourceVersion, serviceName.name());
+        KubeServiceState state = new KubeServiceState(this, vertx, resourceVersion, serviceName.name());
         JsonArray items = response.getJsonArray("items");
         for (int i = 0;i < items.size();i++) {
           JsonObject item = items.getJsonObject(i);
@@ -66,31 +59,19 @@ public class KubeResolver implements AddressResolver<ServiceState, ServiceAddres
         return state;
       }).andThen(ar -> {
         if (ar.succeeded()) {
-          ServiceState res = ar.result();
+          KubeServiceState res = ar.result();
           res.connectWebSocket();
         }
       });
   }
 
   @Override
-  public Future<SocketAddress> pickAddress(ServiceState unused) {
-    if (unused.podAddresses.isEmpty()) {
-      return Future.failedFuture("No addresses for service " + unused.name);
-    } else {
-      int idx = unused.idx.getAndIncrement();
-      SocketAddress address = unused.podAddresses.get(idx % unused.podAddresses.size());
-      System.out.println("Picked addresse " + address);
-      return Future.succeededFuture(address);
-    }
-  }
-
-  @Override
-  public void removeAddress(ServiceState unused, SocketAddress socketAddress) {
+  public void removeAddress(KubeServiceState unused, SocketAddress socketAddress) {
 
   }
 
   @Override
-  public void dispose(ServiceState unused) {
+  public void dispose(KubeServiceState unused) {
     unused.disposed = true;
     if (unused.ws != null) {
       unused.ws.close();

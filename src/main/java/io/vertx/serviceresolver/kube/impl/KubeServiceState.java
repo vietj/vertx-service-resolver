@@ -1,31 +1,30 @@
-package io.vertx.serviceresolver.impl.kube;
+package io.vertx.serviceresolver.kube.impl;
 
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.http.WebSocketConnectOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.serviceresolver.impl.ServiceState;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
-class ServiceState {
+class KubeServiceState extends ServiceState<SocketAddress> {
 
   String lastResourceVersion;
+  final Vertx vertx;
   final KubeResolver resolver;
-  final String name;
-  final List<SocketAddress> podAddresses;
-  final AtomicInteger idx = new AtomicInteger();
   boolean disposed;
   WebSocket ws;
 
-  ServiceState(KubeResolver resolver, String lastResourceVersion, String name) {
+  KubeServiceState(KubeResolver resolver, Vertx vertx, String lastResourceVersion, String name) {
+    super(name);
     this.resolver = resolver;
+    this.vertx = vertx;
     this.lastResourceVersion = lastResourceVersion;
-    this.name = name;
-    this.podAddresses = new ArrayList<>();
   }
 
   void connectWebSocket() {
@@ -62,12 +61,17 @@ class ServiceState {
       } else {
         if (!disposed) {
           // Retry WebSocket connect
-          resolver.vertx.setTimer(500, id -> {
+          vertx.setTimer(500, id -> {
             connectWebSocket();
           });
         }
       }
     });
+  }
+
+  @Override
+  protected SocketAddress toSocketAddress(SocketAddress endpoint) {
+    return endpoint;
   }
 
   void handleUpdate(JsonObject update) {
@@ -84,7 +88,7 @@ class ServiceState {
     JsonObject metadata = item.getJsonObject("metadata");
     String name = metadata.getString("name");
     if (this.name.equals(name)) {
-      podAddresses.clear();
+      endpoints.clear();
       JsonArray subsets = item.getJsonArray("subsets");
       if (subsets != null) {
         for (int j = 0;j < subsets.size();j++) {
@@ -102,7 +106,7 @@ class ServiceState {
             int podPort = port.getInteger("port");
             for (String podIp : podIps) {
               SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
-              podAddresses.add(podAddress);
+              endpoints.add(podAddress);
             }
           }
         }

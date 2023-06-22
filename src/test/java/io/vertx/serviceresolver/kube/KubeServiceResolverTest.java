@@ -9,7 +9,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.serviceresolver.HttpProxy;
 import io.vertx.serviceresolver.ServiceAddress;
 import io.vertx.serviceresolver.ServiceResolverTestBase;
-import io.vertx.serviceresolver.impl.kube.KubeResolver;
+import io.vertx.serviceresolver.kube.impl.KubeResolver;
 import org.junit.Rule;
 import org.junit.Test;
 
