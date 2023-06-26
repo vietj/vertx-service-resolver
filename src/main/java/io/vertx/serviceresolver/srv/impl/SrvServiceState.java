@@ -6,8 +6,12 @@ import io.vertx.serviceresolver.impl.ServiceState;
 
 class SrvServiceState extends ServiceState<SrvRecord> {
 
-  SrvServiceState(String name) {
+  final long timestamp;
+
+  SrvServiceState(String name, long timestamp) {
     super(name);
+
+    this.timestamp = timestamp;
   }
 
   @Override

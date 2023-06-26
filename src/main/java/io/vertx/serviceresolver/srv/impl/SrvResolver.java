@@ -33,10 +33,21 @@ public class SrvResolver extends ResolverBase<SrvServiceState> {
   public Future<SrvServiceState> resolve(ServiceAddress address) {
     Future<List<SrvRecord>> fut = client.resolveSRV(address.name());
     return fut.map(records -> {
-      SrvServiceState state = new SrvServiceState(address.name());
+      SrvServiceState state = new SrvServiceState(address.name(), System.currentTimeMillis());
       state.endpoints.addAll(records);
       return state;
     });
+  }
+
+  @Override
+  public boolean isValid(SrvServiceState state) {
+    long now = System.currentTimeMillis();
+    for (SrvRecord endpoint : state.endpoints) {
+      if (now > endpoint.ttl() * 1000 + state.timestamp) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

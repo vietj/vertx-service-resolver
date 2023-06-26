@@ -12,10 +12,7 @@ import org.apache.directory.server.dns.store.DnsAttribute;
 import org.junit.Test;
 import org.apache.directory.server.dns.store.RecordStore;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class SrvServiceResolverTest extends ServiceResolverTestBase {
 
@@ -65,6 +62,49 @@ public class SrvServiceResolverTest extends ServiceResolverTestBase {
       }
     });
     Set<String> set = new HashSet<>(Arrays.asList("8080", "8081"));
+    should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
+    should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
+    should.assertEquals(Collections.emptySet(), set);
+  }
+
+  @Test
+  public void testExpiration(TestContext should) throws Exception {
+    startPods(4, req -> {
+      req.response().end("" + req.localAddress().port());
+    });
+    List<Integer> ports = Collections.synchronizedList(new ArrayList<>());
+    dnsServer.store(new RecordStore() {
+      @Override
+      public Set<ResourceRecord> getRecords(QuestionRecord questionRecord) {
+        Set<ResourceRecord> set = new HashSet<>();
+        if ("_http._tcp.example.com".equals(questionRecord.getDomainName())) {
+          for (int i = 0;i < ports.size();i++) {
+            ResourceRecordModifier rm = new ResourceRecordModifier();
+            rm.setDnsClass(RecordClass.IN);
+            rm.setDnsName("dns.vertx.io." + i);
+            rm.setDnsTtl(1);
+            rm.setDnsType(RecordType.SRV);
+            rm.put(DnsAttribute.SERVICE_PRIORITY, String.valueOf(1));
+            rm.put(DnsAttribute.SERVICE_WEIGHT, String.valueOf(1));
+            rm.put(DnsAttribute.SERVICE_PORT, String.valueOf(ports.get(i)));
+            rm.put(DnsAttribute.DOMAIN_NAME, "localhost");
+            set.add(rm.getEntry());
+          }
+        }
+        return set;
+      }
+    });
+    ports.add(8080);
+    ports.add(8081);
+    Set<String> set = new HashSet<>(Arrays.asList("8080", "8081"));
+    should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
+    should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
+    should.assertEquals(Collections.emptySet(), set);
+    Thread.sleep(1000);
+    ports.clear();
+    ports.add(8082);
+    ports.add(8083);
+    set = new HashSet<>(Arrays.asList("8082", "8083"));
     should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
     should.assertTrue(set.remove(get(ServiceAddress.create("_http._tcp.example.com.")).toString()));
     should.assertEquals(Collections.emptySet(), set);
