@@ -24,4 +24,9 @@ public abstract class ResolverBase<T extends ServiceState<?>> implements Address
   public Future<SocketAddress> pickAddress(T unused) {
     return unused.pickAddress();
   }
+
+  @Override
+  public boolean isValid(T state) {
+    return state.isValid();
+  }
 }

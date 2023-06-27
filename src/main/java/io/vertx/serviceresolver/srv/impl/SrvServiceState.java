@@ -15,6 +15,17 @@ class SrvServiceState extends ServiceState<SrvRecord> {
   }
 
   @Override
+  protected boolean isValid() {
+    long now = System.currentTimeMillis();
+    for (SrvRecord endpoint : endpoints) {
+      if (now > endpoint.ttl() * 1000 + timestamp) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
   protected SocketAddress toSocketAddress(SrvRecord endpoint) {
     return SocketAddress.inetSocketAddress(endpoint.port(), endpoint.target());
   }

@@ -40,17 +40,6 @@ public class SrvResolver extends ResolverBase<SrvServiceState> {
   }
 
   @Override
-  public boolean isValid(SrvServiceState state) {
-    long now = System.currentTimeMillis();
-    for (SrvRecord endpoint : state.endpoints) {
-      if (now > endpoint.ttl() * 1000 + state.timestamp) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  @Override
   public void removeAddress(SrvServiceState state, SocketAddress address) {
     // TODO
   }

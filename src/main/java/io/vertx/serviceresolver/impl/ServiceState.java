@@ -28,6 +28,10 @@ public abstract class ServiceState<E> {
     }
   }
 
+  protected boolean isValid() {
+    return true;
+  }
+
   protected abstract SocketAddress toSocketAddress(E endpoint);
 
 
