@@ -2,6 +2,7 @@ package io.vertx.serviceresolver.srv.impl;
 
 import io.vertx.core.dns.SrvRecord;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.serviceresolver.Endpoint;
 import io.vertx.serviceresolver.impl.ServiceState;
 
 class SrvServiceState extends ServiceState<SrvRecord> {
@@ -17,8 +18,8 @@ class SrvServiceState extends ServiceState<SrvRecord> {
   @Override
   protected boolean isValid() {
     long now = System.currentTimeMillis();
-    for (SrvRecord endpoint : endpoints) {
-      if (now > endpoint.ttl() * 1000 + timestamp) {
+    for (Endpoint<SrvRecord> endpoint : endpoints) {
+      if (now > endpoint.get().ttl() * 1000 + timestamp) {
         return false;
       }
     }

@@ -106,7 +106,7 @@ class KubeServiceState extends ServiceState<SocketAddress> {
             int podPort = port.getInteger("port");
             for (String podIp : podIps) {
               SocketAddress podAddress = SocketAddress.inetSocketAddress(podPort, podIp);
-              endpoints.add(podAddress);
+              add(podAddress);
             }
           }
         }

@@ -34,7 +34,7 @@ public class SrvResolver extends ResolverBase<SrvServiceState> {
     Future<List<SrvRecord>> fut = client.resolveSRV(address.name());
     return fut.map(records -> {
       SrvServiceState state = new SrvServiceState(address.name(), System.currentTimeMillis());
-      state.endpoints.addAll(records);
+      state.add(records);
       return state;
     });
   }

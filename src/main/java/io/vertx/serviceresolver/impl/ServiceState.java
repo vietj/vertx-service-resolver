@@ -2,6 +2,7 @@ package io.vertx.serviceresolver.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.serviceresolver.Endpoint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class ServiceState<E> {
 
   public final String name;
-  public final List<E> endpoints = new ArrayList<>();
+  public final List<EndpointBase<E>> endpoints = new ArrayList<>();
   public final AtomicInteger idx = new AtomicInteger();
 
   public ServiceState(String name) {
@@ -22,9 +23,18 @@ public abstract class ServiceState<E> {
       return Future.failedFuture("No addresses for service " + name);
     } else {
       int next = idx.getAndIncrement();
-      E endpoint = endpoints.get(next % endpoints.size());
-      System.out.println("Picked addresse " + next);
-      return Future.succeededFuture(toSocketAddress(endpoint));
+      EndpointBase<E> endpoint = endpoints.get(next % endpoints.size());
+      return Future.succeededFuture(toSocketAddress(endpoint.get()));
+    }
+  }
+
+  public final void add(E endpoint) {
+    endpoints.add(new EndpointBase<>(endpoint));
+  }
+
+  public final void add(List<E> endpoints) {
+    for (E endpoint : endpoints) {
+      add(endpoint);
     }
   }
 
