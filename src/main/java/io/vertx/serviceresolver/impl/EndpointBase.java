@@ -2,7 +2,7 @@ package io.vertx.serviceresolver.impl;
 
 import io.vertx.serviceresolver.Endpoint;
 
-public class EndpointBase<V> implements Endpoint<V> {
+class EndpointBase<V> implements Endpoint<V> {
 
   final V value;
 

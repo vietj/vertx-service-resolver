@@ -50,7 +50,7 @@ public class KubeResolver extends ResolverBase<KubeServiceState> {
         });
       }).map(response -> {
         String resourceVersion = response.getJsonObject("metadata").getString("resourceVersion");
-        KubeServiceState state = new KubeServiceState(this, vertx, resourceVersion, serviceName.name());
+        KubeServiceState state = new KubeServiceState(this, vertx, resourceVersion, serviceName.name(), loadBalancer);
         JsonArray items = response.getJsonArray("items");
         for (int i = 0;i < items.size();i++) {
           JsonObject item = items.getJsonObject(i);

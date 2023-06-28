@@ -8,6 +8,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.serviceresolver.impl.ServiceState;
+import io.vertx.serviceresolver.loadbalancing.LoadBalancer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +21,8 @@ class KubeServiceState extends ServiceState<SocketAddress> {
   boolean disposed;
   WebSocket ws;
 
-  KubeServiceState(KubeResolver resolver, Vertx vertx, String lastResourceVersion, String name) {
-    super(name);
+  KubeServiceState(KubeResolver resolver, Vertx vertx, String lastResourceVersion, String name, LoadBalancer loadBalancer) {
+    super(name, loadBalancer);
     this.resolver = resolver;
     this.vertx = vertx;
     this.lastResourceVersion = lastResourceVersion;
