@@ -21,14 +21,18 @@ public class KubeResolver extends ResolverBase<KubeServiceState> {
   final String bearerToken;
 
   public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
+    this(vertx, namespace, host, port, bearerToken, new HttpClientOptions()
+      .setSsl(true)
+      .setTrustAll(true));
+  }
+
+  public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken, HttpClientOptions clientOptions) {
     super(vertx);
     this.namespace = namespace;
     this.host = host;
     this.port = port;
     this.bearerToken = bearerToken;
-    this.client = vertx.createHttpClient(new HttpClientOptions()
-      .setSsl(true)
-      .setTrustAll(true));
+    this.client = vertx.createHttpClient(clientOptions);
   }
 
   @Override
@@ -45,7 +49,13 @@ public class KubeResolver extends ResolverBase<KubeServiceState> {
               .body()
               .map(Buffer::toJsonObject);
           } else {
-            return Future.failedFuture("Invalid status code " + resp.statusCode());
+            return resp.body().transform(ar -> {
+              StringBuilder msg = new StringBuilder("Invalid status code " + resp.statusCode());
+              if (ar.succeeded()) {
+                msg.append(" : ").append(ar.result().toString());
+              }
+              return Future.failedFuture(msg.toString());
+            });
           }
         });
       }).map(response -> {

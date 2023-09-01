@@ -3,6 +3,7 @@ package io.vertx.serviceresolver;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.HttpClientInternal;
@@ -34,7 +35,7 @@ public abstract class ServiceResolverTestBase {
 
   @Before
   public void setUp() throws Exception {
-    vertx = Vertx.vertx();
+    vertx = Vertx.vertx(new VertxOptions());
     pods = new ArrayList<>();
   }
 
@@ -58,6 +59,10 @@ public abstract class ServiceResolverTestBase {
   }
 
   protected List<SocketAddress> startPods(int numPods, Handler<HttpServerRequest> service) throws Exception {
+    return startPods(numPods, "0.0.0.0", service);
+  }
+
+  protected List<SocketAddress> startPods(int numPods, String bindAddress, Handler<HttpServerRequest> service) throws Exception {
     int basePort = pods.isEmpty() ? 8080 : pods.get(pods.size() - 1).actualPort() + 1;
     List<HttpServer> started = new ArrayList<>();
     for (int i = 0;i < numPods;i++) {
@@ -65,7 +70,7 @@ public abstract class ServiceResolverTestBase {
         .createHttpServer()
         .requestHandler(service);
       started.add(pod);
-      pod.listen(basePort + i, "0.0.0.0")
+      pod.listen(basePort + i, bindAddress)
         .toCompletionStage()
         .toCompletableFuture()
         .get(20, TimeUnit.SECONDS);
@@ -73,7 +78,7 @@ public abstract class ServiceResolverTestBase {
     pods.addAll(started);
     return started
       .stream()
-      .map(s -> SocketAddress.inetSocketAddress(s.actualPort(), "127.0.0.1"))
+      .map(s -> SocketAddress.inetSocketAddress(s.actualPort(), bindAddress))
       .collect(Collectors.toList());
   }
 

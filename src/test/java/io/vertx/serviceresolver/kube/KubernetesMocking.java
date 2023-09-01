@@ -1,7 +1,10 @@
 package io.vertx.serviceresolver.kube;
 
+import com.dajudge.kindcontainer.KubernetesContainer;
 import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
@@ -13,12 +16,14 @@ import junit.framework.AssertionFailedError;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static io.fabric8.kubernetes.client.Config.fromKubeconfig;
 
 public class KubernetesMocking {
 
-  private final KubernetesServer server;
-  private KubernetesClient client;
-  private int port;
+  private final KubernetesClient client;
+  private final int port;
 
   public KubernetesMocking(KubernetesServer server) {
 
@@ -32,9 +37,42 @@ public class KubernetesMocking {
       throw afe;
     }
 
-    this.server = server;
     this.client = client;
     this.port = port;
+  }
+
+  public KubernetesMocking(KubernetesContainer<?> k8s) throws Exception {
+    Config cfg = fromKubeconfig(k8s.getKubeconfig());
+
+    KubernetesClient client2 = new KubernetesClientBuilder()
+      .withConfig(cfg).build();
+
+    client2.serviceAccounts()
+      .create(new ServiceAccountBuilder()
+        .withNewMetadata()
+        .withName("default")
+        .withNamespace("default")
+        .endMetadata()
+        .build());
+
+    List<String> namespaces = client2
+      .namespaces()
+      .list()
+      .getItems()
+      .stream()
+      .map(sa -> sa.getMetadata().getName())
+      .collect(Collectors.toList());
+
+    List<String> serviceAccounts = client2
+      .serviceAccounts()
+      .list()
+      .getItems()
+      .stream()
+      .map(sa -> sa.getMetadata().getName() + "/" + sa.getMetadata().getNamespace())
+      .collect(Collectors.toList());
+
+    this.client = ((NamespacedKubernetesClient)client2).inNamespace("default");
+    this.port = -1;
   }
 
   public int port() {
@@ -45,7 +83,11 @@ public class KubernetesMocking {
     return client.getNamespace();
   }
 
-//  void registerKubernetesResources(String serviceName, String namespace, List<SocketAddress> ips) {
+  public KubernetesClient client() {
+    return client;
+  }
+
+  //  void registerKubernetesResources(String serviceName, String namespace, List<SocketAddress> ips) {
 //    buildAndRegisterKubernetesService(serviceName, namespace, true, ips);
 //    ips.forEach(ip -> buildAndRegisterBackendPod(serviceName, namespace, true, ip));
 //  }
@@ -109,10 +151,18 @@ public class KubernetesMocking {
 
     Map<String, String> podLabels = new HashMap<>(serviceLabels);
     podLabels.put("ui", "ui-" + ipAsSuffix(ip));
-    Pod backendPod = new PodBuilder().withNewMetadata().withName(name + "-" + ipAsSuffix(ip))
+    Pod backendPod = new PodBuilder()
+      .withNewMetadata().withName(name + "-" + ipAsSuffix(ip))
       .withLabels(podLabels)
       .withNamespace(namespace)
       .endMetadata()
+      .withNewSpec()
+      .withContainers(new ContainerBuilder()
+        .withName("frontend")
+        .withImage("clustering-kubernetes/frontend:latest")
+        .withPorts(new ContainerPortBuilder().withContainerPort(ip.port()).build())
+        .build())
+      .endSpec()
       .build();
     NonNamespaceOperation<Pod, PodList, PodResource> pods;
     if (namespace != null) {
