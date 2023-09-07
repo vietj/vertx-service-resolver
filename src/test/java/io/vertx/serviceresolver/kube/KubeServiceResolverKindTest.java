@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.http.TlsVersion;
 import io.fabric8.kubernetes.client.internal.SSLUtils;
 import io.netty.util.NetUtil;
 import io.vertx.core.Handler;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
@@ -29,19 +30,7 @@ import static io.fabric8.kubernetes.client.Config.fromKubeconfig;
 
 public class KubeServiceResolverKindTest extends KubeServiceResolverTestBase {
 
-  @Rule
-//  public static K3sContainer<?> K8S = new K3sContainer<>();
-  public ApiServerContainer<?> K8S = new ApiServerContainer<>();
-
-  public void setUp() throws Exception {
-    super.setUp();
-
-    kubernetesMocking = new KubernetesMocking(K8S);
-
-    Config cfg = fromKubeconfig(K8S.getKubeconfig());
-
-    URL url = new URL(cfg.getMasterUrl());
-
+  public static HttpClientOptions clientOptions(Config cfg) throws Exception {
     HttpClientOptions options = new HttpClientOptions();
     if (cfg.getTlsVersions() != null && cfg.getTlsVersions().length > 0) {
       Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(options::addEnabledSecureTransportProtocol);
@@ -57,6 +46,23 @@ public class KubeServiceResolverKindTest extends KubeServiceResolverTestBase {
       .setSsl(true)
       .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
       .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
+
+    return options;
+  }
+
+  @Rule
+//  public static K3sContainer<?> K8S = new K3sContainer<>();
+  public ApiServerContainer<?> K8S = new ApiServerContainer<>();
+
+  public void setUp() throws Exception {
+    super.setUp();
+
+    kubernetesMocking = new KubernetesMocking(K8S);
+
+    Config cfg = fromKubeconfig(K8S.getKubeconfig());
+    URL url = new URL(cfg.getMasterUrl());
+    HttpClientOptions options = clientOptions(cfg);
+
     KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), url.getHost(), url.getPort(), null, options);
     client = (HttpClientInternal) vertx.createHttpClient();
     client.addressResolver(resolver);
