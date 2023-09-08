@@ -2,11 +2,11 @@ package io.vertx.serviceresolver.impl;
 
 import io.vertx.serviceresolver.Endpoint;
 
-class EndpointBase<V> implements Endpoint<V> {
+final class EndpointImpl<V> implements Endpoint<V> {
 
   final V value;
 
-  public EndpointBase(V value) {
+  public EndpointImpl(V value) {
     this.value = value;
   }
 
