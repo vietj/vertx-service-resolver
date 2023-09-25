@@ -10,7 +10,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-public class KubeServiceResolverTestBase extends ServiceResolverTestBase {
+public abstract class KubeServiceResolverTestBase extends ServiceResolverTestBase {
 
   protected KubernetesMocking kubernetesMocking;
 

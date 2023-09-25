@@ -2,11 +2,11 @@ package io.vertx.serviceresolver;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
-import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.core.net.JksOptions;
 import io.vertx.core.net.SocketAddress;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -14,14 +14,16 @@ public class HttpProxy {
 
   private final Vertx vertx;
   private HttpServer server;
-  private HttpClient client;
+  private HttpClient httpClient;
+  private WebSocketClient wsClient;
   private SocketAddress origin;
   private int port;
-  private final ConcurrentHashSet<WebSocketBase> webSockets = new ConcurrentHashSet<>();
+  private final Set<WebSocketBase> webSockets = ConcurrentHashMap.newKeySet();
 
   public HttpProxy(Vertx vertx) {
     this.vertx = vertx;
-    this.client = vertx.createHttpClient();
+    this.httpClient = vertx.createHttpClient();
+    this.wsClient = vertx.createWebSocketClient();
   }
 
   public HttpProxy origin(SocketAddress origin) {
@@ -55,7 +57,7 @@ public class HttpProxy {
       options.setServer(origin);
       options.setURI(serverRequest.uri());
       serverRequest.pause();
-      client.webSocket(options).onComplete(ar -> {
+      wsClient.connect(options).onComplete(ar -> {
         if (ar.succeeded()) {
           WebSocket wsc = ar.result();
           AtomicBoolean closed = new AtomicBoolean();
@@ -101,7 +103,7 @@ public class HttpProxy {
         .setURI(serverRequest.uri());
       serverRequest.body().onComplete(ar_ -> {
         if (ar_.succeeded()) {
-          client.request(options).onComplete(ar -> {
+          httpClient.request(options).onComplete(ar -> {
             if (ar.succeeded()) {
               HttpClientRequest clientRequest = ar.result();
               clientRequest.send(ar_.result()).onComplete(ar2 -> {

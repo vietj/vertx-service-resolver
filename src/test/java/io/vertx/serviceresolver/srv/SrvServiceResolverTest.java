@@ -26,8 +26,7 @@ public class SrvServiceResolverTest extends ServiceResolverTestBase {
 
     SrvResolver resolver = new SrvResolver((VertxInternal) vertx, FakeDNSServer.IP_ADDRESS, FakeDNSServer.PORT);
 
-    client = (HttpClientInternal) vertx.createHttpClient();
-    client.addressResolver(resolver);
+    client = vertx.httpClientBuilder().withAddressResolver(resolver).build();
   }
 
   public void tearDown() throws Exception {

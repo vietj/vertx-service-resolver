@@ -32,8 +32,9 @@ public class KubeServiceResolverMockTest extends KubeServiceResolverTestBase {
     proxy.start();
 
     KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234, null);
-    client = (HttpClientInternal) vertx.createHttpClient();
-    client.addressResolver(resolver);
+    client = vertx.httpClientBuilder()
+      .withAddressResolver(resolver)
+      .build();
   }
 
   @Test

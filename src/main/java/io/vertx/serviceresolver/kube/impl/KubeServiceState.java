@@ -42,32 +42,32 @@ class KubeServiceState extends ServiceState<SocketAddress> {
     if (resolver.bearerToken != null) {
       connectOptions.putHeader(HttpHeaders.AUTHORIZATION, "Bearer " + resolver.bearerToken);
     }
-    resolver.client.webSocket(connectOptions).onComplete(ar2 -> {
-      if (ar2.succeeded()) {
-        WebSocket ws = ar2.result();
-        if (disposed) {
-          ws.close();
-        } else {
-          this.ws = ws;
-          ws.handler(buff -> {
-            JsonObject update  = buff.toJsonObject();
-            handleUpdate(update);
-          });
-          ws.closeHandler(v -> {
-            if (!disposed) {
-              connectWebSocket();
-            }
-          });
-        }
-      } else {
+    resolver.wsClient.webSocket()
+      .handler(buff -> {
+        JsonObject update  = buff.toJsonObject();
+        handleUpdate(update);
+      })
+      .closeHandler(v -> {
         if (!disposed) {
-          // Retry WebSocket connect
-          vertx.setTimer(500, id -> {
-            connectWebSocket();
-          });
+          connectWebSocket();
         }
-      }
-    });
+      }).connect(connectOptions).onComplete(ar -> {
+        if (ar.succeeded()) {
+          WebSocket ws = ar.result();
+          if (disposed) {
+            ws.close();
+          } else {
+            this.ws = ws;
+          }
+        } else {
+          if (!disposed) {
+            // Retry WebSocket connect
+            vertx.setTimer(500, id -> {
+              connectWebSocket();
+            });
+          }
+        }
+      });
   }
 
   @Override

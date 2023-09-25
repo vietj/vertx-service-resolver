@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public abstract class ServiceResolverTestBase {
 
   protected Vertx vertx;
-  protected HttpClientInternal client;
+  protected HttpClient client;
   protected List<HttpServer> pods;
 
   @Before
@@ -92,8 +92,12 @@ public abstract class ServiceResolverTestBase {
   }
 
   protected Buffer get(ServiceAddress addr) throws Exception {
+
     Future<Buffer> fut = client
-      .request(addr, HttpMethod.GET, 80, "localhost", "/")
+      .request(new RequestOptions()
+        .setServer(addr)
+        .setHost("localhost")
+        .setPort(80))
       .compose(req -> req.send()
         .compose(HttpClientResponse::body));
     try {

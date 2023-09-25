@@ -9,8 +9,10 @@ import io.vertx.core.Handler;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.WebSocketClientOptions;
 import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.*;
+import io.vertx.ext.unit.TestContext;
 import io.vertx.serviceresolver.kube.impl.KubeResolver;
 import org.junit.Rule;
 
@@ -42,24 +44,29 @@ public class KubeServiceResolverKindTest extends KubeServiceResolverTestBase {
 
     URL url = new URL(cfg.getMasterUrl());
 
-    HttpClientOptions options = new HttpClientOptions();
+    HttpClientOptions httpClientOptions = new HttpClientOptions();
+    WebSocketClientOptions wsClientOptions = new WebSocketClientOptions();
     if (cfg.getTlsVersions() != null && cfg.getTlsVersions().length > 0) {
-      Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(options::addEnabledSecureTransportProtocol);
+      Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(httpClientOptions::addEnabledSecureTransportProtocol);
+      Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(wsClientOptions::addEnabledSecureTransportProtocol);
     }
 
     if (cfg.isHttp2Disable()) {
-      options.setProtocolVersion(HttpVersion.HTTP_1_1);
+      httpClientOptions.setProtocolVersion(HttpVersion.HTTP_1_1);
     }
 
     TrustManager[] trustManagers = SSLUtils.trustManagers(cfg);
     KeyManager[] keyManagers = SSLUtils.keyManagers(cfg);
-    options
+    httpClientOptions
       .setSsl(true)
       .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
       .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
-    KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), url.getHost(), url.getPort(), null, options);
-    client = (HttpClientInternal) vertx.createHttpClient();
-    client.addressResolver(resolver);
+    wsClientOptions
+      .setSsl(true)
+      .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
+      .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
+    KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), url.getHost(), url.getPort(), null, httpClientOptions, wsClientOptions);
+    client = vertx.httpClientBuilder().withAddressResolver(resolver).build();
   }
 
   private String determineHostAddress() {
