@@ -19,4 +19,5 @@ public interface KubeResolver extends AddressResolver {
   static KubeResolver create(Vertx vertx, KubeResolverOptions options) {
     return new KubeResolverImpl(vertx, options.getNamespace(), options.getHost(), options.getPort(), options.getBearerToken(), options.getHttpClientOptions(), options.getWebSocketClientOptions());
   }
+
 }

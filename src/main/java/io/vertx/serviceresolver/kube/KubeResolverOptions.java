@@ -11,21 +11,88 @@
 package io.vertx.serviceresolver.kube;
 
 import io.vertx.codegen.annotations.DataObject;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocketClientOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.PemTrustOptions;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 @DataObject(generateConverter = true, publicConverter = false)
 public class KubeResolverOptions {
 
-  private String host;
-  private int port;
-  private String namespace;
-  private String bearerToken;
-  private HttpClientOptions httpClientOptions;
-  private WebSocketClientOptions webSocketClientOptions;
+  private static final String KUBERNETES_SERVICE_HOST = "KUBERNETES_SERVICE_HOST";
+  private static final String KUBERNETES_SERVICE_PORT = "KUBERNETES_SERVICE_PORT";
+  private static final String KUBERNETES_SERVICE_ACCOUNT_TOKEN = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+  private static final String KUBERNETES_SERVICE_ACCOUNT_CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+  private static final String KUBERNETES_SERVICE_ACCOUNT_NAMESPACE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
+
+  private static final String DEFAULT_HOST;
+  private static final Integer DEFAULT_PORT;
+  private static final String DEFAULT_TOKEN;
+  private static final String DEFAULT_NAMESPACE;
+  private static final HttpClientOptions DEFAULT_HTTP_CLIENT_OPTIONS;
+  private static final WebSocketClientOptions DEFAULT_WEB_SOCKET_OPTIONS;
+
+  static {
+    String host = System.getenv(KUBERNETES_SERVICE_HOST);
+    Integer port = 443;
+    String v = System.getenv(KUBERNETES_SERVICE_PORT);
+    if (v != null) {
+      try {
+        port = Integer.parseInt(v);
+      } catch (NumberFormatException ignore) {
+      }
+    }
+    File tokenFile = new File(KUBERNETES_SERVICE_ACCOUNT_TOKEN);
+    String token = null;
+    if (tokenFile.exists()) {
+      try {
+        token = Buffer.buffer(Files.readAllBytes(tokenFile.toPath())).toString();
+      } catch (IOException ignore) {
+      }
+    }
+    String namespace = "default";
+    File namespaceFile = new File(KUBERNETES_SERVICE_ACCOUNT_NAMESPACE);
+    if (namespaceFile.exists()) {
+      try {
+        namespace = Buffer.buffer(Files.readAllBytes(namespaceFile.toPath())).toString();
+      } catch (IOException ignore) {
+      }
+    }
+    HttpClientOptions httpClientOptions = new HttpClientOptions().setSsl(true);
+    WebSocketClientOptions webSocketClientOptions = new WebSocketClientOptions().setSsl(true);
+    File caFile = new File(KUBERNETES_SERVICE_ACCOUNT_CA);
+    if (caFile.exists()) {
+      PemTrustOptions pemTrustOptions = new PemTrustOptions().addCertPath(KUBERNETES_SERVICE_ACCOUNT_CA);
+      httpClientOptions.setPemTrustOptions(pemTrustOptions);
+      webSocketClientOptions.setPemTrustOptions(pemTrustOptions);
+    }
+    DEFAULT_HOST = host;
+    DEFAULT_PORT = port;
+    DEFAULT_TOKEN = token;
+    DEFAULT_NAMESPACE = namespace;
+    DEFAULT_HTTP_CLIENT_OPTIONS = httpClientOptions;
+    DEFAULT_WEB_SOCKET_OPTIONS = webSocketClientOptions;
+  }
+
+  private String host = DEFAULT_HOST;
+  private Integer port = DEFAULT_PORT;
+  private String namespace = DEFAULT_NAMESPACE;
+  private String bearerToken = DEFAULT_TOKEN;
+  private HttpClientOptions httpClientOptions = new HttpClientOptions(DEFAULT_HTTP_CLIENT_OPTIONS);
+  private WebSocketClientOptions webSocketClientOptions = new WebSocketClientOptions(DEFAULT_WEB_SOCKET_OPTIONS);
 
   public KubeResolverOptions() {
+    host = DEFAULT_HOST;
+    port = DEFAULT_PORT;
+    namespace = DEFAULT_NAMESPACE;
+    bearerToken = DEFAULT_TOKEN;
+    httpClientOptions = new HttpClientOptions(DEFAULT_HTTP_CLIENT_OPTIONS);
+    webSocketClientOptions = new WebSocketClientOptions(DEFAULT_WEB_SOCKET_OPTIONS);
   }
 
   public KubeResolverOptions(KubeResolverOptions other) {
@@ -33,8 +100,8 @@ public class KubeResolverOptions {
     this.port = other.port;
     this.namespace = other.namespace;
     this.bearerToken = other.bearerToken;
-    this.httpClientOptions = other.httpClientOptions != null ? new HttpClientOptions(other.httpClientOptions) : null;
-    this.webSocketClientOptions = other.webSocketClientOptions != null ? new WebSocketClientOptions(other.webSocketClientOptions) : null;
+    this.httpClientOptions = other.httpClientOptions != null ? new HttpClientOptions(other.httpClientOptions) : new HttpClientOptions();
+    this.webSocketClientOptions = other.webSocketClientOptions != null ? new WebSocketClientOptions(other.webSocketClientOptions) : new WebSocketClientOptions();
   }
 
   public KubeResolverOptions(JsonObject json) {
