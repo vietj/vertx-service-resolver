@@ -18,16 +18,17 @@ import io.vertx.core.net.Address;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.serviceresolver.ServiceAddress;
 import io.vertx.serviceresolver.impl.ResolverBase;
+import io.vertx.serviceresolver.srv.SrvResolver;
 
 import java.util.List;
 
-public class SrvResolver extends ResolverBase<SrvServiceState> {
+public class SrvResolverImpl extends ResolverBase<SrvServiceState> implements SrvResolver {
 
   final String host;
   final int port;
   final DnsClient client;
 
-  public SrvResolver(VertxInternal vertx, String host, int port) {
+  public SrvResolverImpl(VertxInternal vertx, String host, int port) {
     super(vertx);
     this.host = host;
     this.port = port;

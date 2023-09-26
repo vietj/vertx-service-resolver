@@ -3,12 +3,11 @@ package io.vertx.serviceresolver.kube;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.vertx.core.Handler;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.serviceresolver.HttpProxy;
 import io.vertx.serviceresolver.ServiceAddress;
-import io.vertx.serviceresolver.kube.impl.KubeResolver;
+import io.vertx.serviceresolver.kube.impl.KubeResolverImpl;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -31,7 +30,14 @@ public class KubeServiceResolverMockTest extends KubeServiceResolverTestBase {
     proxy.port(1234);
     proxy.start();
 
-    KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), "localhost", 1234, null);
+    KubeResolverOptions options = new KubeResolverOptions()
+      .setNamespace(kubernetesMocking.defaultNamespace())
+      .setHost("localhost")
+      .setPort(1234)
+      .setHttpClientOptions(new HttpClientOptions().setSsl(true).setTrustAll(true))
+      .setWebSocketClientOptions(new WebSocketClientOptions().setSsl(true).setTrustAll(true));
+
+    KubeResolver resolver = KubeResolver.create(vertx, options);
     client = vertx.httpClientBuilder()
       .withAddressResolver(resolver)
       .build();

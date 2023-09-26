@@ -19,10 +19,11 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.serviceresolver.ServiceAddress;
 import io.vertx.serviceresolver.impl.ResolverBase;
+import io.vertx.serviceresolver.kube.KubeResolver;
 
 import static io.vertx.core.http.HttpMethod.GET;
 
-public class KubeResolver extends ResolverBase<KubeServiceState> {
+public class KubeResolverImpl extends ResolverBase<KubeServiceState> implements KubeResolver {
 
   final String host;
   final int port;
@@ -31,22 +32,14 @@ public class KubeResolver extends ResolverBase<KubeServiceState> {
   final String namespace;
   final String bearerToken;
 
-  public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken) {
-    this(vertx, namespace, host, port, bearerToken, new HttpClientOptions()
-      .setSsl(true)
-      .setTrustAll(true), new WebSocketClientOptions()
-      .setSsl(true)
-      .setTrustAll(true));
-  }
-
-  public KubeResolver(Vertx vertx, String namespace, String host, int port, String bearerToken, HttpClientOptions httpClientOptions, WebSocketClientOptions wsClientOptions) {
+  public KubeResolverImpl(Vertx vertx, String namespace, String host, int port, String bearerToken, HttpClientOptions httpClientOptions, WebSocketClientOptions wsClientOptions) {
     super(vertx);
     this.namespace = namespace;
     this.host = host;
     this.port = port;
     this.bearerToken = bearerToken;
-    this.wsClient = vertx.createWebSocketClient(wsClientOptions);
-    this.httpClient = vertx.createHttpClient(httpClientOptions);
+    this.wsClient = vertx.createWebSocketClient(wsClientOptions == null ? new WebSocketClientOptions() : wsClientOptions);
+    this.httpClient = vertx.createHttpClient(httpClientOptions == null ? new HttpClientOptions() : httpClientOptions);
   }
 
   @Override

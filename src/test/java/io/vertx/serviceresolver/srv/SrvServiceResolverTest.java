@@ -1,11 +1,8 @@
 package io.vertx.serviceresolver.srv;
 
-import io.vertx.core.http.impl.HttpClientInternal;
-import io.vertx.core.impl.VertxInternal;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.serviceresolver.ServiceAddress;
 import io.vertx.serviceresolver.ServiceResolverTestBase;
-import io.vertx.serviceresolver.srv.impl.SrvResolver;
 import io.vertx.test.fakedns.FakeDNSServer;
 import org.apache.directory.server.dns.messages.*;
 import org.apache.directory.server.dns.store.DnsAttribute;
@@ -24,7 +21,11 @@ public class SrvServiceResolverTest extends ServiceResolverTestBase {
     dnsServer = new FakeDNSServer();
     dnsServer.start();
 
-    SrvResolver resolver = new SrvResolver((VertxInternal) vertx, FakeDNSServer.IP_ADDRESS, FakeDNSServer.PORT);
+    SrvResolverOptions options = new SrvResolverOptions()
+      .setHost(FakeDNSServer.IP_ADDRESS)
+      .setPort(FakeDNSServer.PORT);
+
+    SrvResolver resolver = SrvResolver.create( vertx, options);
 
     client = vertx.httpClientBuilder().withAddressResolver(resolver).build();
   }

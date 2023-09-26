@@ -27,11 +27,11 @@ class KubeServiceState extends ServiceState<SocketAddress> {
 
   String lastResourceVersion;
   final Vertx vertx;
-  final KubeResolver resolver;
+  final KubeResolverImpl resolver;
   boolean disposed;
   WebSocket ws;
 
-  KubeServiceState(KubeResolver resolver, Vertx vertx, String lastResourceVersion, String name, LoadBalancer loadBalancer) {
+  KubeServiceState(KubeResolverImpl resolver, Vertx vertx, String lastResourceVersion, String name, LoadBalancer loadBalancer) {
     super(name, loadBalancer);
     this.resolver = resolver;
     this.vertx = vertx;

@@ -10,10 +10,7 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.WebSocketClientOptions;
-import io.vertx.core.http.impl.HttpClientInternal;
 import io.vertx.core.net.*;
-import io.vertx.ext.unit.TestContext;
-import io.vertx.serviceresolver.kube.impl.KubeResolver;
 import org.junit.Rule;
 
 import javax.net.ssl.KeyManager;
@@ -65,7 +62,13 @@ public class KubeServiceResolverKindTest extends KubeServiceResolverTestBase {
       .setSsl(true)
       .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
       .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
-    KubeResolver resolver = new KubeResolver(vertx, kubernetesMocking.defaultNamespace(), url.getHost(), url.getPort(), null, httpClientOptions, wsClientOptions);
+    KubeResolverOptions options = new KubeResolverOptions()
+      .setNamespace(kubernetesMocking.defaultNamespace())
+      .setHost(url.getHost())
+      .setPort(url.getPort())
+      .setHttpClientOptions(httpClientOptions)
+      .setWebSocketClientOptions(wsClientOptions);
+    KubeResolver resolver = KubeResolver.create(vertx, options);
     client = vertx.httpClientBuilder().withAddressResolver(resolver).build();
   }
 
