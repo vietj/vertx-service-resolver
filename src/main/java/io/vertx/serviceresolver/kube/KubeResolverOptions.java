@@ -86,6 +86,9 @@ public class KubeResolverOptions {
   private HttpClientOptions httpClientOptions = new HttpClientOptions(DEFAULT_HTTP_CLIENT_OPTIONS);
   private WebSocketClientOptions webSocketClientOptions = new WebSocketClientOptions(DEFAULT_WEB_SOCKET_OPTIONS);
 
+  /**
+   * Constructor with default options, those might have been set from the pod environment when running in a pod.
+   */
   public KubeResolverOptions() {
     host = DEFAULT_HOST;
     port = DEFAULT_PORT;
@@ -95,6 +98,9 @@ public class KubeResolverOptions {
     webSocketClientOptions = new WebSocketClientOptions(DEFAULT_WEB_SOCKET_OPTIONS);
   }
 
+  /**
+   * Default constructor.
+   */
   public KubeResolverOptions(KubeResolverOptions other) {
     this.host = other.host;
     this.port = other.port;
@@ -104,6 +110,9 @@ public class KubeResolverOptions {
     this.webSocketClientOptions = other.webSocketClientOptions != null ? new WebSocketClientOptions(other.webSocketClientOptions) : new WebSocketClientOptions();
   }
 
+  /**
+   * JSON constructor
+   */
   public KubeResolverOptions(JsonObject json) {
     KubeResolverOptionsConverter.fromJson(json, this);
   }

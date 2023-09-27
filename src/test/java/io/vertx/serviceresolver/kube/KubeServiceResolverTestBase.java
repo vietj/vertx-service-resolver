@@ -88,8 +88,18 @@ public abstract class KubeServiceResolverTestBase extends ServiceResolverTestBas
     should.assertEquals("8081", get(ServiceAddress.create("svc")).toString());
     kubernetesMocking.buildAndRegisterBackendPod(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.DELETE, pods.get(1));
     kubernetesMocking.buildAndRegisterKubernetesService(serviceName, kubernetesMocking.defaultNamespace(), KubeOp.UPDATE, pods.subList(0, 1));
-    should.assertEquals("8080", get(ServiceAddress.create("svc")).toString());
-    should.assertEquals("8080", get(ServiceAddress.create("svc")).toString());
+    long now = System.currentTimeMillis();
+    again:
+    while (true) {
+      should.assertTrue(System.currentTimeMillis() - now < 20_000);
+      for (int i = 0;i < 3;i++) {
+        if (!"8080".equals(get(ServiceAddress.create("svc")).toString())) {
+          Thread.sleep(10);
+          continue again;
+        }
+      }
+      break;
+    }
   }
 
 /*

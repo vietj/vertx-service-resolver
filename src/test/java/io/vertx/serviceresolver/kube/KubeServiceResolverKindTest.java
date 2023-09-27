@@ -3,9 +3,9 @@ package io.vertx.serviceresolver.kube;
 import com.dajudge.kindcontainer.ApiServerContainer;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.http.TlsVersion;
-import io.fabric8.kubernetes.client.internal.SSLUtils;
 import io.netty.util.NetUtil;
 import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpVersion;
@@ -13,9 +13,6 @@ import io.vertx.core.http.WebSocketClientOptions;
 import io.vertx.core.net.*;
 import org.junit.Rule;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509KeyManager;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -38,30 +35,29 @@ public class KubeServiceResolverKindTest extends KubeServiceResolverTestBase {
     kubernetesMocking = new KubernetesMocking(K8S);
 
     Config cfg = fromKubeconfig(K8S.getKubeconfig());
-
     URL url = new URL(cfg.getMasterUrl());
-
     HttpClientOptions httpClientOptions = new HttpClientOptions();
     WebSocketClientOptions wsClientOptions = new WebSocketClientOptions();
     if (cfg.getTlsVersions() != null && cfg.getTlsVersions().length > 0) {
       Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(httpClientOptions::addEnabledSecureTransportProtocol);
       Stream.of(cfg.getTlsVersions()).map(TlsVersion::javaName).forEach(wsClientOptions::addEnabledSecureTransportProtocol);
     }
-
     if (cfg.isHttp2Disable()) {
       httpClientOptions.setProtocolVersion(HttpVersion.HTTP_1_1);
     }
-
-    TrustManager[] trustManagers = SSLUtils.trustManagers(cfg);
-    KeyManager[] keyManagers = SSLUtils.keyManagers(cfg);
+    Buffer caCert = Buffer.buffer(Base64.getDecoder().decode(cfg.getCaCertData()));
+    Buffer clientKey = Buffer.buffer(Base64.getDecoder().decode(cfg.getClientKeyData()));
+    Buffer clientCert = Buffer.buffer(Base64.getDecoder().decode(cfg.getClientCertData()));
+    KeyCertOptions keyCerts = new PemKeyCertOptions().addKeyValue(clientKey).addCertValue(clientCert);
+    TrustOptions trust = new PemTrustOptions().addCertValue(caCert);
     httpClientOptions
       .setSsl(true)
-      .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
-      .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
+      .setKeyCertOptions(keyCerts)
+      .setTrustOptions(trust);
     wsClientOptions
       .setSsl(true)
-      .setKeyCertOptions(KeyCertOptions.wrap((X509KeyManager) keyManagers[0]))
-      .setTrustOptions(TrustOptions.wrap(trustManagers[0]));
+      .setKeyCertOptions(keyCerts)
+      .setTrustOptions(trust);
     KubeResolverOptions options = new KubeResolverOptions()
       .setNamespace(kubernetesMocking.defaultNamespace())
       .setHost(url.getHost())
